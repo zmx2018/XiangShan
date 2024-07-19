@@ -8,7 +8,7 @@ import utility.XSError
 import xiangshan.backend.fu.FuConfig
 import xiangshan.backend.fu.fpu.FpPipedFuncUnit
 import yunsuan.VfpuType
-import yunsuan.vector.VectorConvert.VectorCvt
+import yunsuan.scalar.FPCVT
 import yunsuan.util._
 
 
@@ -52,6 +52,9 @@ class FCVT(cfg: FuConfig)(implicit p: Parameters) extends FpPipedFuncUnit(cfg) {
         BitPat("b10_00") -> BitPat("b0001"), // 8
         BitPat("b10_01") -> BitPat("b0010"), // 16
         BitPat("b10_10") -> BitPat("b0100"), // 32
+
+        BitPat("b11_01") -> BitPat("b1000"), // f16->f64/i64/ui64
+        BitPat("b11_11") -> BitPat("b0010"), // f64->f16
       ),
       BitPat.N(4)
     )
@@ -66,7 +69,7 @@ class FCVT(cfg: FuConfig)(implicit p: Parameters) extends FpPipedFuncUnit(cfg) {
   val outIsMvInst = outCtrl.fuOpType(8)
 
   // modules
-  val fcvt = Module(new VectorCvt(XLEN))
+  val fcvt = Module(new FPCVT(XLEN))
   fcvt.io.fire := fire
   fcvt.io.src := src0
   fcvt.io.opType := opcode(7, 0)
@@ -79,19 +82,11 @@ class FCVT(cfg: FuConfig)(implicit p: Parameters) extends FpPipedFuncUnit(cfg) {
   val isNarrowCycle2 = RegEnable(RegEnable(isNarrowCvt, fire), fireReg)
   val outputWidth1HCycle2 = RegEnable(RegEnable(outputWidth1H, fire), fireReg)
 
-  val fcvtResult = Mux(isNarrowCycle2, fcvt.io.result.tail(32), fcvt.io.result)
-
-  val fcvtFflags = Mux1H(outputWidth1HCycle2, Seq(
-    fcvt.io.fflags,
-    Mux(isNarrowCycle2, fcvt.io.fflags.tail(10), fcvt.io.fflags),
-    Mux(isNarrowCycle2, fcvt.io.fflags(4,0), fcvt.io.fflags.tail(10)),
-    fcvt.io.fflags(4,0)
-  ))
-
-  io.out.bits.res.fflags.get := Mux(outIsMvInst, 0.U, fcvtFflags)
+  val fcvtResult = fcvt.io.result
+  io.out.bits.res.fflags.get := Mux(outIsMvInst, 0.U, fcvt.io.fflags)
 
   // for scalar f2i cvt inst
-  val isFpToInt32 = outIs32bits && outIsInt
+//  val isFpToInt32 = outIs32bits && outIsInt
   // for f2i mv inst
   val result = Mux(outIsMvInst, RegNext(RegNext(src0)),
     // for scalar fp32 fp16 result
@@ -101,9 +96,7 @@ class FCVT(cfg: FuConfig)(implicit p: Parameters) extends FpPipedFuncUnit(cfg) {
       Mux(outIs16bits && !outIsInt, Cat(Fill(48, 1.U), fcvtResult(15,0)), fcvtResult)
     )
   )
+  
+  io.out.bits.res.data := result
 
-  io.out.bits.res.data := Mux(isFpToInt32,
-    Fill(32, result(31)) ## result(31, 0),
-    result
-  )
 }
