@@ -237,7 +237,7 @@ object FuConfig {
   val I2fCfg: FuConfig = FuConfig (
     name = "i2f",
     FuType.i2f,
-    fuGen = (p: Parameters, cfg: FuConfig) => Module(new IntToFP(cfg)(p).suggestName("i2f")),
+    fuGen = (p: Parameters, cfg: FuConfig) => Module(new I2FCVT(cfg)(p).suggestName("i2f")),
     srcData = Seq(
       Seq(IntData()),
     ),
