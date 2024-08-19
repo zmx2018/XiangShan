@@ -6,7 +6,7 @@ import utils.EnumUtils.OHEnumeration
 import xiangshan.ExceptionNO._
 import xiangshan.SelImm
 import xiangshan.backend.Std
-import xiangshan.backend.fu.fpu.{I2FCVT, IntFPToVec}
+import xiangshan.backend.fu.fpu.{IntToFP, IntFPToVec}
 import xiangshan.backend.fu.wrapper._
 import xiangshan.backend.Bundles.ExuInput
 import xiangshan.backend.datapath.DataConfig._
@@ -237,7 +237,7 @@ object FuConfig {
   val I2fCfg: FuConfig = FuConfig (
     name = "i2f",
     FuType.i2f,
-    fuGen = (p: Parameters, cfg: FuConfig) => Module(new I2FCVT(cfg)(p).suggestName("i2f")),
+    fuGen = (p: Parameters, cfg: FuConfig) => Module(new IntToFP(cfg)(p).suggestName("i2f")),
     srcData = Seq(
       Seq(IntData()),
     ),
